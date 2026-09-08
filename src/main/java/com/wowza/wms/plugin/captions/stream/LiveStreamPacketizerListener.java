@@ -23,15 +23,24 @@ import static com.wowza.wms.plugin.captions.ModuleCaptionsBase.RESAMPLED_STREAM_
 public class LiveStreamPacketizerListener extends LiveStreamPacketizerActionNotifyBase
 {
     private final IApplicationInstance appInstance;
+    private final StreamCaptionsFilter captionsFilter;
 
     public LiveStreamPacketizerListener(IApplicationInstance appInstance)
     {
+        this(appInstance, StreamCaptionsFilter.matchAll());
+    }
+
+    public LiveStreamPacketizerListener(IApplicationInstance appInstance, StreamCaptionsFilter captionsFilter)
+    {
         this.appInstance = appInstance;
+        this.captionsFilter = captionsFilter;
     }
 
     @Override
     public void onLiveStreamPacketizerCreate(ILiveStreamPacketizer packetizer, String streamName)
     {
+        if (!captionsFilter.matches(streamName))
+            return;
         IMediaStream stream = appInstance.getStreams().getStream(streamName);
         if (!isCEAModuleInstalled() && packetizer instanceof LiveStreamPacketizerCupertino && (streamName.endsWith(DELAYED_STREAM_SUFFIX) || (stream.isTranscodeResult() && !streamName.endsWith(RESAMPLED_STREAM_SUFFIX))))
         {

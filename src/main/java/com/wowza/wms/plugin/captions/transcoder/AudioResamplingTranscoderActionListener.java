@@ -11,6 +11,7 @@ import com.wowza.wms.plugin.captions.azure.AzureSpeechToTextHandler;
 import com.wowza.wms.plugin.captions.caption.CaptionHandler;
 import com.wowza.wms.plugin.captions.caption.DelayedStreamCaptionHandler;
 import com.wowza.wms.plugin.captions.stream.DelayedStream;
+import com.wowza.wms.plugin.captions.stream.StreamCaptionsFilter;
 import com.wowza.wms.application.IApplicationInstance;
 import com.wowza.wms.transcoder.model.LiveStreamTranscoder;
 import com.wowza.wms.transcoder.model.TranscoderSessionAudio;
@@ -32,6 +33,7 @@ public abstract class AudioResamplingTranscoderActionListener extends CaptionsTr
     protected final IApplicationInstance appInstance;
     private final Map<String, SpeechHandler> handlers;
     private final Map<String, DelayedStream> delayedStreams;
+    private final StreamCaptionsFilter captionsFilter;
 
     private static final Path resampleTemplate;
 
@@ -50,17 +52,34 @@ public abstract class AudioResamplingTranscoderActionListener extends CaptionsTr
 
     public AudioResamplingTranscoderActionListener(IApplicationInstance appInstance, Map<String, SpeechHandler> handlers, Map<String, DelayedStream> delayedStreams)
     {
+        this(appInstance, handlers, delayedStreams, StreamCaptionsFilter.matchAll());
+    }
+
+    public AudioResamplingTranscoderActionListener(IApplicationInstance appInstance, Map<String, SpeechHandler> handlers, Map<String, DelayedStream> delayedStreams,
+            StreamCaptionsFilter captionsFilter)
+    {
         this.appInstance = appInstance;
         this.handlers = handlers;
         this.delayedStreams = delayedStreams;
+        this.captionsFilter = captionsFilter;
     }
 
     @Override
     public void onInitBeforeLoadTemplate(LiveStreamTranscoder transcoder)
     {
+        if (!captionsFilter.matches(transcoder.getStreamName()))
+            return;
         super.onInitBeforeLoadTemplate(transcoder);
         if (!transcoder.getStreamName().endsWith(DELAYED_STREAM_SUFFIX))
             transcoder.setTemplateName(resampleTemplate.toUri().toString());
+    }
+
+    @Override
+    public void onInitAfterLoadTemplate(LiveStreamTranscoder transcoder)
+    {
+        if (!captionsFilter.matches(transcoder.getStreamName()))
+            return;
+        super.onInitAfterLoadTemplate(transcoder);
     }
 
     @Override
@@ -68,6 +87,8 @@ public abstract class AudioResamplingTranscoderActionListener extends CaptionsTr
     {
         String streamName = transcoder.getStreamName();
         if (streamName.endsWith(DELAYED_STREAM_SUFFIX))
+            return;
+        if (!captionsFilter.matches(streamName))
             return;
         String mappedName  = streamName.replace(".stream", "");
         TranscoderSessionAudio sessionAudio = transcoder.getTranscodingSession().getSessionAudio();

@@ -19,11 +19,18 @@ public class DelayedStreamListener implements IMediaStreamLivePacketNotify, Medi
 {
     protected final IApplicationInstance appInstance;
     protected final Map<String, DelayedStream> delayedStreams;
+    protected final StreamCaptionsFilter captionsFilter;
 
     public DelayedStreamListener(IApplicationInstance appInstance, Map<String, DelayedStream> delayedStreams)
     {
+        this(appInstance, delayedStreams, StreamCaptionsFilter.matchAll());
+    }
+
+    public DelayedStreamListener(IApplicationInstance appInstance, Map<String, DelayedStream> delayedStreams, StreamCaptionsFilter captionsFilter)
+    {
         this.appInstance = appInstance;
         this.delayedStreams = delayedStreams;
+        this.captionsFilter = captionsFilter;
     }
 
     @Override
@@ -41,6 +48,8 @@ public class DelayedStreamListener implements IMediaStreamLivePacketNotify, Medi
     {
         String streamName = stream.getName();
         if (stream.isTranscodeResult() || streamName.endsWith(DELAYED_STREAM_SUFFIX))
+            return;
+        if (!captionsFilter.matches(streamName))
             return;
         String mappedName = streamName.replace(".stream", "");
         DelayedStream delayedStream = delayedStreams.computeIfAbsent(mappedName,

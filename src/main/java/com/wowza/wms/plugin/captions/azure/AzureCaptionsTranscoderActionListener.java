@@ -8,6 +8,7 @@ package com.wowza.wms.plugin.captions.azure;
 import com.wowza.wms.plugin.captions.audio.SpeechHandler;
 import com.wowza.wms.plugin.captions.caption.CaptionHandler;
 import com.wowza.wms.plugin.captions.stream.DelayedStream;
+import com.wowza.wms.plugin.captions.stream.StreamCaptionsFilter;
 import com.wowza.wms.application.IApplicationInstance;
 import com.wowza.wms.plugin.captions.transcoder.AudioResamplingTranscoderActionListener;
 
@@ -21,7 +22,13 @@ public class AzureCaptionsTranscoderActionListener extends AudioResamplingTransc
     public AzureCaptionsTranscoderActionListener(IApplicationInstance appInstance, Map<String, SpeechHandler> handlers, Map<String, DelayedStream> delayedStreams,
                                                  String subscriptionKey, String serviceRegion)
     {
-        super(appInstance, handlers, delayedStreams);
+        this(appInstance, handlers, delayedStreams, subscriptionKey, serviceRegion, StreamCaptionsFilter.matchAll());
+    }
+
+    public AzureCaptionsTranscoderActionListener(IApplicationInstance appInstance, Map<String, SpeechHandler> handlers, Map<String, DelayedStream> delayedStreams,
+                                                 String subscriptionKey, String serviceRegion, StreamCaptionsFilter captionsFilter)
+    {
+        super(appInstance, handlers, delayedStreams, captionsFilter);
         this.subscriptionKey = subscriptionKey;
         this.serviceRegion = serviceRegion;
     }

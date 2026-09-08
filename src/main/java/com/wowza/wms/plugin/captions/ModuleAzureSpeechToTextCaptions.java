@@ -11,6 +11,7 @@ import com.wowza.wms.plugin.captions.azure.AzureCaptionsTranscoderActionListener
 import com.wowza.wms.plugin.captions.stream.DelayedStream;
 import com.wowza.wms.plugin.captions.stream.DelayedStreamListener;
 import com.wowza.wms.plugin.captions.stream.LiveStreamPacketizerListener;
+import com.wowza.wms.plugin.captions.stream.StreamCaptionsFilter;
 import com.wowza.wms.plugin.captions.transcoder.CaptionsTranscoderCreateListener;
 import com.wowza.wms.application.IApplicationInstance;
 import com.wowza.wms.logging.*;
@@ -37,6 +38,7 @@ public class ModuleAzureSpeechToTextCaptions extends ModuleCaptionsBase
     }
 
     public static final String PROP_CAPTIONS_ENABLED = "speechToTextCaptionsEnabled";
+    public static final String PROP_CAPTIONS_ENABLED_FOR_STREAM = "speechToTextCaptionsEnabledForStream";
     public static final String PROP_DEFAULT_CAPTION_LANGUAGES = ITimedTextConstants.PROP_LIVE_CAPTION_DEFAULT_LANGUAGES;
     public static final String PROP_RECOGNITION_LANGUAGE = "speechToTextRecognitionLanguage";
     public static final String PROP_PHRASE_LIST = "speechToTextPhraseList";
@@ -49,11 +51,13 @@ public class ModuleAzureSpeechToTextCaptions extends ModuleCaptionsBase
     private String subscriptionKey;
     private String serviceRegion;
     private boolean enabled = false;
+    private StreamCaptionsFilter captionsFilter = StreamCaptionsFilter.matchAll();
 
     public void onAppCreate(IApplicationInstance appInstance)
     {
         super.onAppCreate(appInstance);
         enabled = appInstance.getProperties().getPropertyBoolean(PROP_CAPTIONS_ENABLED, enabled);
+        captionsFilter = StreamCaptionsFilter.fromPattern(appInstance.getProperties().getPropertyStr(PROP_CAPTIONS_ENABLED_FOR_STREAM), appInstance, logger);
         try
         {
             subscriptionKey = Objects.requireNonNull(appInstance.getProperties().getPropertyStr(PROP_SUBSCRIPTION_KEY), "Azure Speech Subscription Key not set");
@@ -64,7 +68,8 @@ public class ModuleAzureSpeechToTextCaptions extends ModuleCaptionsBase
             logger.error(String.format("%s.onAppCreate [%s] error: %s", MODULE_NAME, appInstance.getContextStr(), npe.getMessage()));
             enabled = false;
         }
-        logger.info(String.format("%s.onAppCreate: [%s] version: %s enabled: %b", MODULE_NAME, appInstance.getContextStr(), MODULE_VERSION, enabled));
+        logger.info(String.format("%s.onAppCreate: [%s] version: %s enabled: %b streamPattern: [%s]", MODULE_NAME, appInstance.getContextStr(), MODULE_VERSION, enabled,
+                captionsFilter.getPatternStr()));
     }
 
     public void onAppStart(IApplicationInstance appInstance)
@@ -73,10 +78,10 @@ public class ModuleAzureSpeechToTextCaptions extends ModuleCaptionsBase
             return;
         try
         {
-            appInstance.addLiveStreamPacketizerListener(new LiveStreamPacketizerListener(appInstance));
+            appInstance.addLiveStreamPacketizerListener(new LiveStreamPacketizerListener(appInstance, captionsFilter));
             appInstance.addLiveStreamTranscoderListener(new CaptionsTranscoderCreateListener(new AzureCaptionsTranscoderActionListener(appInstance, speechHandlers, delayedStreams,
-                    subscriptionKey, serviceRegion)));
-            delayedStreamListener = new DelayedStreamListener(appInstance, delayedStreams);
+                    subscriptionKey, serviceRegion, captionsFilter)));
+            delayedStreamListener = new DelayedStreamListener(appInstance, delayedStreams, captionsFilter);
             appInstance.addMediaCasterListener(delayedStreamListener);
         }
         catch (Exception e)
