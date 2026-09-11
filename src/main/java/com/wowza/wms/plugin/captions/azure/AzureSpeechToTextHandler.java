@@ -83,6 +83,10 @@ public class AzureSpeechToTextHandler implements SpeechHandler
         speechConfig = translationLanguages.isEmpty() ? SpeechConfig.fromSubscription(subscriptionKey, serviceRegion) :
                        SpeechTranslationConfig.fromSubscription(subscriptionKey, serviceRegion);
         speechConfig.setSpeechRecognitionLanguage(recognitionLanguage);
+        // Speech SDK native TLS verifies CRLs; many hosts fail CRL fetch and then WebSocket
+        // open with WS_OPEN_ERROR_UNDERLYING_IO_OPEN_FAILED. Disable CRL check unless opted out.
+        if (props.getPropertyBoolean("speechToTextDisableCrlCheck", true))
+            speechConfig.setProperty("OPENSSL_DISABLE_CRL_CHECK", "true");
 
         ProfanityOption profanityOption = ProfanityOption.Masked;
         try

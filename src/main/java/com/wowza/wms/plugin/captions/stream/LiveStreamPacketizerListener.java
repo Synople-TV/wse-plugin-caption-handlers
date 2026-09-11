@@ -17,7 +17,10 @@ import com.wowza.wms.timedtext.model.ITimedTextConstants;
 import java.util.Collection;
 import java.util.function.Predicate;
 
+import static com.wowza.wms.plugin.captions.ModuleCaptionsBase.CAPTION_DELIVERY_CEA;
+import static com.wowza.wms.plugin.captions.ModuleCaptionsBase.CAPTION_DELIVERY_WEBVTT;
 import static com.wowza.wms.plugin.captions.ModuleCaptionsBase.DELAYED_STREAM_SUFFIX;
+import static com.wowza.wms.plugin.captions.ModuleCaptionsBase.PROP_CAPTION_DELIVERY;
 import static com.wowza.wms.plugin.captions.ModuleCaptionsBase.RESAMPLED_STREAM_SUFFIX;
 
 public class LiveStreamPacketizerListener extends LiveStreamPacketizerActionNotifyBase
@@ -42,7 +45,15 @@ public class LiveStreamPacketizerListener extends LiveStreamPacketizerActionNoti
         if (!captionsFilter.matches(streamName))
             return;
         IMediaStream stream = appInstance.getStreams().getStream(streamName);
-        if (!isCEAModuleInstalled() && packetizer instanceof LiveStreamPacketizerCupertino && (streamName.endsWith(DELAYED_STREAM_SUFFIX) || (stream.isTranscodeResult() && !streamName.endsWith(RESAMPLED_STREAM_SUFFIX))))
+        // Default delivery=cea: do not force WebVTT sidecars so ModuleOnTextDataToCEA can
+        // embed CEA-608 in video (required for native playlist.m3u8?DVR captions).
+        // Set speechToTextCaptionDelivery=webvtt for the old live-sidecar behavior.
+        String delivery = appInstance.getProperties().getPropertyStr(PROP_CAPTION_DELIVERY, CAPTION_DELIVERY_CEA).trim().toLowerCase();
+        boolean wantWebVtt = CAPTION_DELIVERY_WEBVTT.equals(delivery) && !isCEAModuleInstalled();
+        if (wantWebVtt
+                && packetizer instanceof LiveStreamPacketizerCupertino
+                && (streamName.endsWith(DELAYED_STREAM_SUFFIX)
+                        || (stream.isTranscodeResult() && !streamName.endsWith(RESAMPLED_STREAM_SUFFIX))))
         {
             packetizer.getProperties().setProperty(ITimedTextConstants.PROP_CUPERTINO_LIVE_USE_WEBVTT, true);
         }

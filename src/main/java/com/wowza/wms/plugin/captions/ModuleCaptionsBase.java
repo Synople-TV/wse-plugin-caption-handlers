@@ -20,6 +20,10 @@ public class ModuleCaptionsBase extends ModuleBase
     public static final boolean DEFAULT_CAPTIONS_ENABLED = false;
     public static final String PROP_CAPTIONS_STREAM_DELAY = "captionHandlerStreamDelay";
     public static final String PROP_CAPTIONS_DEBUG_LOG = "captionHandlerDebug";
+    /** cea = in-band CEA-608 for native ?DVR; webvtt = live WebVTT sidecars (not in nDVR). */
+    public static final String PROP_CAPTION_DELIVERY = "speechToTextCaptionDelivery";
+    public static final String CAPTION_DELIVERY_CEA = "cea";
+    public static final String CAPTION_DELIVERY_WEBVTT = "webvtt";
     public static final String PROP_DELAYED_STREAM_DEBUG_LOG = "captionHandlerDelayedStreamDebugLog";
     public static final String PROP_MAX_CAPTION_LINE_LENGTH = "captionHandlerMaxLineLength";
     public static final String PROP_MAX_CAPTION_LINE_COUNT = "captionHandlerMaxLines";
