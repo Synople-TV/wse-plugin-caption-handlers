@@ -24,6 +24,10 @@ public class ModuleCaptionsBase extends ModuleBase
     public static final String PROP_CAPTION_DELIVERY = "speechToTextCaptionDelivery";
     public static final String CAPTION_DELIVERY_CEA = "cea";
     public static final String CAPTION_DELIVERY_WEBVTT = "webvtt";
+    /** Save final STT cues as one WebVTT next to live-record MP4s (content/<stream>.vtt). */
+    public static final String PROP_SAVE_WEBVTT = "speechToTextSaveWebVtt";
+    /** Optional override directory; default = application stream storage (content/). */
+    public static final String PROP_WEBVTT_OUTPUT_DIR = "speechToTextWebVttOutputDir";
     public static final String PROP_DELAYED_STREAM_DEBUG_LOG = "captionHandlerDelayedStreamDebugLog";
     public static final String PROP_MAX_CAPTION_LINE_LENGTH = "captionHandlerMaxLineLength";
     public static final String PROP_MAX_CAPTION_LINE_COUNT = "captionHandlerMaxLines";

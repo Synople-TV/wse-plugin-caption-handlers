@@ -7,9 +7,9 @@ package com.wowza.wms.plugin.captions.transcoder;
 
 import com.wowza.wms.logging.WMSLoggerFactory;
 import com.wowza.wms.plugin.captions.audio.SpeechHandler;
-import com.wowza.wms.plugin.captions.azure.AzureSpeechToTextHandler;
 import com.wowza.wms.plugin.captions.caption.CaptionHandler;
 import com.wowza.wms.plugin.captions.caption.DelayedStreamCaptionHandler;
+import com.wowza.wms.plugin.captions.caption.RecordingCaptionHandler;
 import com.wowza.wms.plugin.captions.stream.DelayedStream;
 import com.wowza.wms.plugin.captions.stream.StreamCaptionsFilter;
 import com.wowza.wms.application.IApplicationInstance;
@@ -27,12 +27,14 @@ import java.util.Objects;
 import java.util.concurrent.Executors;
 
 import static com.wowza.wms.plugin.captions.ModuleCaptionsBase.DELAYED_STREAM_SUFFIX;
+import static com.wowza.wms.plugin.captions.ModuleCaptionsBase.RESAMPLED_STREAM_SUFFIX;
 
 public abstract class AudioResamplingTranscoderActionListener extends CaptionsTranscoderActionListener
 {
     protected final IApplicationInstance appInstance;
     private final Map<String, SpeechHandler> handlers;
     private final Map<String, DelayedStream> delayedStreams;
+    private final Map<String, RecordingCaptionHandler> recordingHandlers = new java.util.concurrent.ConcurrentHashMap<>();
     private final StreamCaptionsFilter captionsFilter;
 
     private static final Path resampleTemplate;
@@ -97,7 +99,15 @@ public abstract class AudioResamplingTranscoderActionListener extends CaptionsTr
             {
                 DelayedStream delayedStream = delayedStreams.computeIfAbsent(mappedName,
                         name -> new DelayedStream(appInstance, streamName, Executors.newSingleThreadScheduledExecutor()));
-                CaptionHandler captionHandler = new DelayedStreamCaptionHandler(appInstance, delayedStream);
+                CaptionHandler delayedHandler = new DelayedStreamCaptionHandler(appInstance, delayedStream);
+                CaptionHandler captionHandler = delayedHandler;
+                // Archive WebVTT only for the primary ingest name (not ABR / resampled children).
+                if (shouldArchiveWebVtt(streamName))
+                {
+                    captionHandler = RecordingCaptionHandler.wrap(appInstance, delayedHandler);
+                    if (captionHandler instanceof RecordingCaptionHandler)
+                        recordingHandlers.put(mappedName, (RecordingCaptionHandler) captionHandler);
+                }
                 SpeechHandler handler = getSpeechHandler(captionHandler);
                 new Thread(handler, handler.getClass().getSimpleName() + "[" + appInstance.getContextStr() + "/" + streamName + "]")
                         .start();
@@ -119,12 +129,27 @@ public abstract class AudioResamplingTranscoderActionListener extends CaptionsTr
 
     public abstract SpeechHandler getSpeechHandler(CaptionHandler captionHandler) throws IOException;
 
+    private static boolean shouldArchiveWebVtt(String streamName)
+    {
+        if (streamName == null || streamName.isBlank())
+            return false;
+        if (streamName.endsWith(DELAYED_STREAM_SUFFIX) || streamName.endsWith(RESAMPLED_STREAM_SUFFIX))
+            return false;
+        if (streamName.endsWith("_source"))
+            return false;
+        return !streamName.matches(".*_\\d+p$");
+    }
+
     @Override
     public void onShutdownStart(LiveStreamTranscoder transcoder)
     {
         String mappedName  = transcoder.getStreamName().replace(".stream", "");
         handlers.computeIfPresent(mappedName, (k, handler) -> {
             handler.close();
+            return null;
+        });
+        recordingHandlers.computeIfPresent(mappedName, (k, recorder) -> {
+            recorder.close();
             return null;
         });
     }
